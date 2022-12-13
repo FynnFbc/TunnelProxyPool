@@ -116,7 +116,7 @@ func get_kxdaili() {
 	}
 	// 获取每日最新ip
 	result := GetResp(Method, Body, "http://www.kxdaili.com/daili.html")
-	urls := regexp.MustCompile("<a class=\"title\" href=\"(.*?)l\">").FindAllStringSubmatch(result, -1)
+	urls := regexp.MustCompile("<a class=\"title\" href=\"(.*?)\">").FindAllStringSubmatch(result, -1)
 	wgp.Add(1)
 	go SpiderProxy(Name, Method, Body, "http://www.kxdaili.com"+urls[0][1], "](.*?)@HTTP")
 	wgp.Wait()
