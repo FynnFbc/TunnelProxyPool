@@ -130,7 +130,7 @@ func VerifyHttp(pr string) bool {
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 	}
 	tr.Proxy = http.ProxyURL(proxyUrl)
-	client := http.Client{Timeout: 5 * time.Second, Transport: &tr}
+	client := http.Client{Timeout: 10 * time.Second, Transport: &tr}
 	request, err := http.NewRequest("GET", "http://baidu.com", nil)
 	//处理返回结果
 	res, err := client.Do(request)
@@ -146,7 +146,7 @@ func VerifyHttp(pr string) bool {
 	return false
 }
 func VerifyHttps(pr string) bool {
-	destConn, err := net.DialTimeout("tcp", pr, 5*time.Second)
+	destConn, err := net.DialTimeout("tcp", pr, 10*time.Second)
 	if err != nil {
 		return false
 	}
@@ -154,7 +154,7 @@ func VerifyHttps(pr string) bool {
 	req := []byte{67, 79, 78, 78, 69, 67, 84, 32, 119, 119, 119, 46, 98, 97, 105, 100, 117, 46, 99, 111, 109, 58, 52, 52, 51, 32, 72, 84, 84, 80, 47, 49, 46, 49, 13, 10, 72, 111, 115, 116, 58, 32, 119, 119, 119, 46, 98, 97, 105, 100, 117, 46, 99, 111, 109, 58, 52, 52, 51, 13, 10, 85, 115, 101, 114, 45, 65, 103, 101, 110, 116, 58, 32, 71, 111, 45, 104, 116, 116, 112, 45, 99, 108, 105, 101, 110, 116, 47, 49, 46, 49, 13, 10, 13, 10}
 	destConn.Write(req)
 	bytes := make([]byte, 1024)
-	destConn.SetReadDeadline(time.Now().Add(5 * time.Second))
+	destConn.SetReadDeadline(time.Now().Add(10 * time.Second))
 	read, err := destConn.Read(bytes)
 	if strings.Contains(string(bytes[:read]), "200") {
 		return true
@@ -163,7 +163,7 @@ func VerifyHttps(pr string) bool {
 }
 
 func VerifySocket5(pr string) bool {
-	destConn, err := net.DialTimeout("tcp", pr, 5*time.Second)
+	destConn, err := net.DialTimeout("tcp", pr, 10*time.Second)
 	if err != nil {
 		return false
 	}
