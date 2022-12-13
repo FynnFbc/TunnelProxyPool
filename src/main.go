@@ -43,7 +43,7 @@ func InitData() {
 	//定时判断是否需要获取代理iP
 	go func() {
 		// 每 60 秒钟时执行一次
-		ticker := time.NewTicker(600 * time.Second)
+		ticker := time.NewTicker(60 * time.Second)
 		for range ticker.C {
 			if len(ProxyPool) < conf.Config.ProxyNum {
 				if !run && !verifyIS {
