@@ -4,7 +4,6 @@ import (
 	"crypto/tls"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -29,7 +28,7 @@ func spiderRun() {
 	}()
 
 	count = 0
-	log.Println("开始抓取代理...")
+	//log.Println("开始抓取代理...")
 
 	Functions := []func(){
 		get_qydaili,     //齐云代理
@@ -57,7 +56,7 @@ func spiderRun() {
 	}
 
 	wg2.Wait()
-	log.Printf("\r%s 代理抓取结束  可用IP: %s\n", time.Now().Format("2006-01-02 15:04:05"), len(ProxyPool))
+	//log.Printf("\r%s 代理抓取结束  可用IP: %s\n", time.Now().Format("2006-01-02 15:04:05"), len(ProxyPool))
 
 	//导出代理到文件
 	export()

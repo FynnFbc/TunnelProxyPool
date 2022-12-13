@@ -35,7 +35,7 @@ func httpSRunTunnelProxyServer() {
 				return
 			}
 			if r.Method == http.MethodConnect {
-				log.Printf("隧道代理 | HTTPS 请求：%s 使用代理: %s", r.URL.String(), httpsIp)
+				//log.Printf("隧道代理 | HTTPS 请求：%s 使用代理: %s", r.URL.String(), httpsIp)
 				destConn, err := net.DialTimeout("tcp", httpsIp, 20*time.Second)
 				if err != nil {
 					http.Error(w, err.Error(), http.StatusServiceUnavailable)
@@ -71,7 +71,7 @@ func httpSRunTunnelProxyServer() {
 				go io.Copy(clientConn, destConn)
 
 			} else {
-				log.Printf("隧道代理 | HTTP 请求：%s 使用代理: %s", r.URL.String(), httpIp)
+				//log.Printf("隧道代理 | HTTP 请求：%s 使用代理: %s", r.URL.String(), httpIp)
 				tr := &http.Transport{
 					TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 				}
@@ -198,10 +198,6 @@ func getHttpsIp() string {
 	for _, v := range ProxyPool {
 		if v.Type == "HTTPS" || v.Type == "SOCKET5" {
 			is := true
-			if v.Type == "SOCKET5" {
-				log.Println(v.Type, v.Ip, v.Port)
-			}
-
 			for _, vv := range httpS {
 				if v.Ip == vv.Ip && v.Port == vv.Port {
 					is = false

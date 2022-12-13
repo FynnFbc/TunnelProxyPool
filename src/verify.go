@@ -171,7 +171,7 @@ func VerifySocket5(pr string) bool {
 	req := []byte{0x05, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}
 	destConn.Write(req)
 	bytes := make([]byte, 1024)
-	destConn.SetReadDeadline(time.Now().Add(5 * time.Second))
+	destConn.SetReadDeadline(time.Now().Add(10 * time.Second))
 	_, err = destConn.Read(bytes)
 	if err != nil {
 		return false
