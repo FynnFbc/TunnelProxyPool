@@ -80,7 +80,7 @@ go build -ldflags "-s -w" -o ../ProxyPool-macos-arm64
 - 需要与config.yml在同一目录  
 - 注意：抓取代理会进行类型地区等验证会比较缓慢，存活验证会快很多
 ```
-.\goProxyPool.exe
+.\ProxyPool.exe
 ```
 
 ### 代理源中有部分需要翻墙才能访问，有条件就设置下config.yml的代理配置
