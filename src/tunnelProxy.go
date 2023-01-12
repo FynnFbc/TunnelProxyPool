@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"crypto/tls"
 	"encoding/base64"
 	"fmt"
@@ -9,17 +8,13 @@ import (
 	"log"
 	"net"
 	"net/http"
-	"net/url"
 	"strings"
 	"sync"
 	"time"
 )
 
 var lock2 sync.Mutex
-var httpI []ProxyIp
 var httpS []ProxyIp
-
-var httpIp string
 var httpsIp string
 
 func httpSRunTunnelProxyServer() {
@@ -29,8 +24,6 @@ func httpSRunTunnelProxyServer() {
 		TLSConfig: &tls.Config{InsecureSkipVerify: true},
 		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			httpsIp = getHttpsIp()
-			httpIp = gethttpIp()
-
 			if authorization(w, r) {
 				return
 			}
@@ -69,42 +62,6 @@ func httpSRunTunnelProxyServer() {
 				destConn.Read(make([]byte, 1024)) //先读取一次
 				go io.Copy(destConn, clientConn)
 				go io.Copy(clientConn, destConn)
-
-			} else {
-				//log.Printf("隧道代理 | HTTP 请求：%s 使用代理: %s", r.URL.String(), httpIp)
-				tr := &http.Transport{
-					TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-				}
-				//配置代理
-				proxyUrl, parseErr := url.Parse("http://" + httpIp)
-				if parseErr != nil {
-					return
-				}
-				tr.Proxy = http.ProxyURL(proxyUrl)
-				client := &http.Client{Timeout: 20 * time.Second, Transport: tr}
-				request, err := http.NewRequest(r.Method, "", r.Body)
-				//增加header选项
-				request.URL = r.URL
-				request.Header = r.Header
-				//处理返回结果
-				res, err := client.Do(request)
-				if err != nil {
-					http.Error(w, err.Error(), http.StatusServiceUnavailable)
-					return
-				}
-				defer res.Body.Close()
-
-				for k, vv := range res.Header {
-					for _, v := range vv {
-						w.Header().Add(k, v)
-					}
-				}
-				var bodyBytes []byte
-				bodyBytes, _ = io.ReadAll(res.Body)
-				res.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
-				w.WriteHeader(res.StatusCode)
-				io.Copy(w, res.Body)
-				res.Body.Close()
 
 			}
 		}),
@@ -158,37 +115,6 @@ func MergeArray(dest []byte, src []byte) (result []byte) {
 	return
 }
 
-func gethttpIp() string {
-	lock2.Lock()
-	defer lock2.Unlock()
-	if len(ProxyPool) == 0 {
-		return ""
-	}
-	for _, v := range ProxyPool {
-		if v.Type == "HTTP" {
-			is := true
-			for _, vv := range httpI {
-				if v.Ip == vv.Ip && v.Port == vv.Port {
-					is = false
-				}
-			}
-			if is {
-				httpI = append(httpI, v)
-				return v.Ip + ":" + v.Port
-			}
-		}
-	}
-	var addr string
-	if len(httpI) != 0 {
-		addr = httpI[0].Ip + ":" + httpI[0].Port
-	}
-	httpI = make([]ProxyIp, 0)
-	if addr == "" {
-		addr = httpsIp
-	}
-	return addr
-}
-
 func getHttpsIp() string {
 	lock2.Lock()
 	defer lock2.Unlock()
@@ -196,7 +122,7 @@ func getHttpsIp() string {
 		return ""
 	}
 	for _, v := range ProxyPool {
-		if v.Type == "HTTPS" || v.Type == "SOCKET5" {
+		if v.Type == "HTTPS" {
 			is := true
 			for _, vv := range httpS {
 				if v.Ip == vv.Ip && v.Port == vv.Port {

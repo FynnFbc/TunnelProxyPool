@@ -44,13 +44,15 @@ func Verify(pi *ProxyIp, wg *sync.WaitGroup, ch chan int, first bool) {
 	//是抓取验证，还是验证代理池内IP
 	startT := time.Now()
 	if first {
+		//if VerifyHttps(pr) {
+		//	pi.Type = "HTTPS"
+		//} else if VerifySocket5(pr) {
+		//	pi.Type = "SOCKET5"
+		//} else {
+		//	return
+		//}
 		if VerifyHttps(pr) {
 			pi.Type = "HTTPS"
-		} else if VerifyHttp(pr) {
-			pi.Type = "HTTP"
-
-		} else if VerifySocket5(pr) {
-			pi.Type = "SOCKET5"
 		} else {
 			return
 		}
@@ -68,15 +70,12 @@ func Verify(pi *ProxyIp, wg *sync.WaitGroup, ch chan int, first bool) {
 			if VerifyHttps(pr) {
 				pi.SuccessNum++
 			}
-		} else if pi.Type == "HTTP" {
-			if VerifyHttp(pr) {
-				pi.SuccessNum++
-			}
-		} else if pi.Type == "SOCKET5" {
-			if VerifySocket5(pr) {
-				pi.SuccessNum++
-			}
 		}
+		//else if pi.Type == "SOCKET5" {
+		//	if VerifySocket5(pr) {
+		//		pi.SuccessNum++
+		//	}
+		//}
 		tc := time.Since(startT)
 		pi.Time = time.Now().Format("2006-01-02 15:04:05")
 		pi.Speed = fmt.Sprintf("%s", tc)
@@ -120,30 +119,6 @@ func Verify(pi *ProxyIp, wg *sync.WaitGroup, ch chan int, first bool) {
 	pi.RequestNum = 1
 	pi.SuccessNum = 1
 	PIAdd(pi)
-}
-func VerifyHttp(pr string) bool {
-	proxyUrl, proxyErr := url.Parse("http://" + pr)
-	if proxyErr != nil {
-		return false
-	}
-	tr := http.Transport{
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-	}
-	tr.Proxy = http.ProxyURL(proxyUrl)
-	client := http.Client{Timeout: 10 * time.Second, Transport: &tr}
-	request, err := http.NewRequest("GET", "http://baidu.com", nil)
-	//处理返回结果
-	res, err := client.Do(request)
-	if err != nil {
-		return false
-	}
-	defer res.Body.Close()
-	dataBytes, _ := io.ReadAll(res.Body)
-	result := string(dataBytes)
-	if strings.Contains(result, "0;url=http://www.baidu.com") {
-		return true
-	}
-	return false
 }
 func VerifyHttps(pr string) bool {
 	destConn, err := net.DialTimeout("tcp", pr, 10*time.Second)
@@ -252,14 +227,14 @@ func VerifyProxy() {
 	}
 	verifyIS = true
 
-	log.Printf("开始验证代理存活情况, 验证次数是当前代理数的3倍: %d\n", len(ProxyPool)*3)
+	log.Printf("开始验证代理存活情况, 验证次数: %d\n", len(ProxyPool)*2)
 	for i, _ := range ProxyPool {
 		ProxyPool[i].RequestNum = 0
 		ProxyPool[i].SuccessNum = 0
 	}
 	count = len(ProxyPool) * 3
 
-	for io := 0; io < 3; io++ {
+	for io := 0; io < 2; io++ {
 		for i := range ProxyPool {
 			wg3.Add(1)
 			ch1 <- 1

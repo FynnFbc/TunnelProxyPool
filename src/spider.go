@@ -2,8 +2,10 @@ package main
 
 import (
 	"crypto/tls"
+	"encoding/base64"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -16,7 +18,7 @@ import (
 var wg sync.WaitGroup
 var wg2 sync.WaitGroup
 var wgp sync.WaitGroup
-var ch2 = make(chan int, 10000)
+var ch2 = make(chan int, 50000)
 
 // 是否抓取中
 var run = false
@@ -49,6 +51,7 @@ func spiderRun() {
 		get_66daili,     //66ip代理
 		get_github,      //代理列表
 		get_opendaili,   //open代理
+		get_fofa,        //fofa
 	}
 	for i := range Functions {
 		wg2.Add(1)
@@ -74,7 +77,7 @@ func get_qydaili() {
 	Re := "\\s*?<td data-title=\"IP\">(.*?)</td>\\s*?<td data-title=\"PORT\">(.*?)</td>"
 	for i := 1; i <= 20; i++ {
 		wgp.Add(1)
-		go SpiderProxy(Name, Method, Body, "https://proxy.ip3366.net/free/?action=china&page="+strconv.Itoa(i), Re)
+		go SpiderProxy(Name, Method, Body, "https://proxy.ip3366.net/free/?action=china&page="+strconv.Itoa(i), Re, false)
 		time.Sleep(time.Duration(Interval) * time.Second)
 	}
 	wgp.Wait()
@@ -91,7 +94,7 @@ func get_89daili() {
 	Re := `<tr>\s*?<td>\s*?(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\s*?</td>\s*?<td>\s*?(\d+?)\s*?</td>`
 	for i := 1; i <= 25; i++ {
 		wgp.Add(1)
-		go SpiderProxy(Name, Method, Body, "https://www.89ip.cn/index_"+strconv.Itoa(i)+".html", Re)
+		go SpiderProxy(Name, Method, Body, "https://www.89ip.cn/index_"+strconv.Itoa(i)+".html", Re, false)
 		time.Sleep(time.Duration(Interval) * time.Second)
 	}
 	wgp.Wait()
@@ -104,21 +107,24 @@ func get_kxdaili() {
 	Name := "开心代理"
 	Method := "GET"
 	Body := ""
-	Interval := 1
+	Interval := 0
 	Re := "<tr[\\s\\S]*?<td>(.*?)</td>\\s*?<td>(.*?)</td>"
 	for i := 1; i <= 10; i++ {
 		wgp.Add(1)
-		go SpiderProxy(Name, Method, Body, "http://www.kxdaili.com/dailiip/1/"+strconv.Itoa(i)+".html", Re)
+		go SpiderProxy(Name, Method, Body, "http://www.kxdaili.com/dailiip/1/"+strconv.Itoa(i)+".html", Re, false)
 		time.Sleep(time.Duration(Interval) * time.Second)
 		wgp.Add(1)
-		go SpiderProxy(Name, Method, Body, "http://www.kxdaili.com/dailiip/2/"+strconv.Itoa(i)+".html", Re)
+		go SpiderProxy(Name, Method, Body, "http://www.kxdaili.com/dailiip/2/"+strconv.Itoa(i)+".html", Re, false)
 		time.Sleep(time.Duration(Interval) * time.Second)
 	}
 	// 获取每日最新ip
-	result := GetResp(Method, Body, "http://www.kxdaili.com/daili.html")
+	result := GetResp(Method, Body, "http://www.kxdaili.com/daili.html", false)
 	urls := regexp.MustCompile("<a class=\"title\" href=\"(.*?)\">").FindAllStringSubmatch(result, -1)
-	wgp.Add(1)
-	go SpiderProxy(Name, Method, Body, "http://www.kxdaili.com"+urls[0][1], "](.*?)@HTTP")
+	if len(urls) != 0 {
+		wgp.Add(1)
+		go SpiderProxy(Name, Method, Body, "http://www.kxdaili.com"+urls[0][1], "](.*?)@HTTP", false)
+	}
+
 	wgp.Wait()
 }
 func get_kdaili() {
@@ -132,9 +138,9 @@ func get_kdaili() {
 	Interval := 0
 	Re := "<td>(\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3})</td>[\\s\\S]*?<td>(\\d+?)</td>"
 	for s := 1; s <= 5; s++ {
-		for i := 1; i <= 10; i++ {
+		for i := 1; i <= 100; i++ {
 			wgp.Add(1)
-			go SpiderProxy(Name, Method, Body, "http://www.ip3366.net/free/?stype="+strconv.Itoa(s)+"&page="+strconv.Itoa(i), Re)
+			go SpiderProxy(Name, Method, Body, "http://www.ip3366.net/free/?stype="+strconv.Itoa(s)+"&page="+strconv.Itoa(i), Re, true)
 			time.Sleep(time.Duration(Interval) * time.Second)
 		}
 	}
@@ -151,13 +157,15 @@ func get_gkydaili() {
 	Interval := 0
 	Re := "(\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}):(\\d+)@HTTP"
 	wgp.Add(1)
-	go SpiderProxy(Name, Method, Body, "https://ip.jiangxianli.com/api/proxy_ips", "\"ip\":\"(.*?)\",\"port\":\"(.*?)\"")
+	go SpiderProxy(Name, Method, Body, "https://ip.jiangxianli.com/api/proxy_ips", "\"ip\":\"(.*?)\",\"port\":\"(.*?)\"", false)
 	time.Sleep(time.Duration(Interval) * time.Second)
-	result := GetResp(Method, Body, "https://ip.jiangxianli.com/blog.html")
+	result := GetResp(Method, Body, "https://ip.jiangxianli.com/blog.html", false)
 	urls := regexp.MustCompile("<h3><a href=\"(.*?)\">").FindAllStringSubmatch(result, -1)
-	wgp.Add(1)
-	go SpiderProxy(Name, Method, Body, urls[0][1], Re)
-	time.Sleep(time.Duration(Interval) * time.Second)
+	if len(urls) != 0 {
+		wgp.Add(1)
+		go SpiderProxy(Name, Method, Body, urls[0][1], Re, false)
+		time.Sleep(time.Duration(Interval) * time.Second)
+	}
 	wgp.Wait()
 }
 func get_xsdaili() {
@@ -170,12 +178,15 @@ func get_xsdaili() {
 	Body := ""
 	Interval := 0
 	Re := "(\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}):(\\d+)@HTTP"
-	result := GetResp(Method, Body, "https://www.xsdaili.cn/")
+	result := GetResp(Method, Body, "https://www.xsdaili.cn/", false)
 	urls := regexp.MustCompile("<div class=\"title\">\\s*?<a href=\"(.*?)\">").FindAllStringSubmatch(result, -1)
-	wgp.Add(1)
-	go SpiderProxy(Name, Method, Body, "https://www.xsdaili.cn"+urls[0][1], Re)
-	time.Sleep(time.Duration(Interval) * time.Second)
-	wgp.Wait()
+	if len(urls) != 0 {
+		wgp.Add(1)
+		go SpiderProxy(Name, Method, Body, "https://www.xsdaili.cn"+urls[0][1], Re, false)
+		time.Sleep(time.Duration(Interval) * time.Second)
+		wgp.Wait()
+	}
+
 }
 func get_lmydaili() {
 	defer func() {
@@ -189,7 +200,7 @@ func get_lmydaili() {
 	Re := "\"host\": \"(.*?)\", \"port\": (.*?),"
 
 	wgp.Add(1)
-	go SpiderProxy(Name, Method, Body, "http://proxylist.fatezero.org/proxy.list", Re)
+	go SpiderProxy(Name, Method, Body, "http://proxylist.fatezero.org/proxy.list", Re, false)
 	time.Sleep(time.Duration(Interval) * time.Second)
 	wgp.Wait()
 }
@@ -232,7 +243,7 @@ func get_dbdaili() {
 	for u := range Urls {
 		for i := 1; i <= 4; i++ {
 			wgp.Add(1)
-			go SpiderProxy(Name, Method, Body, fmt.Sprintf(Urls[u], strconv.Itoa(i)), Re)
+			go SpiderProxy(Name, Method, Body, fmt.Sprintf(Urls[u], strconv.Itoa(i)), Re, false)
 			time.Sleep(time.Duration(Interval) * time.Second)
 		}
 	}
@@ -246,18 +257,18 @@ func get_hidemydaili() {
 	Name := "hidemy代理"
 	Method := "GET"
 	Body := ""
-	Interval := 0
+	Interval := 1
 	Re := `<tr><td>(.*?)</td><td>(\d+?)</td>`
 	wgp.Add(1)
-	go SpiderProxy(Name, Method, Body, "https://hidemy.name/cn/proxy-list/?maxtime=1000&type=45#list", Re)
+	go SpiderProxy(Name, Method, Body, "https://hidemy.name/cn/proxy-list/?maxtime=1000&type=45#list", Re, false)
 	wgp.Add(1)
-	go SpiderProxy(Name, Method, Body, "https://hidemy.name/cn/proxy-list/?maxtime=1000&type=45&start=64#list", Re)
-
+	go SpiderProxy(Name, Method, Body, "https://hidemy.name/cn/proxy-list/?maxtime=1000&type=45&start=64#list", Re, false)
+	time.Sleep(time.Duration(Interval) * time.Second)
 	Types := []string{"h", "s"}
 	for t := range Types {
-		for i := 0; i <= 210; i++ {
+		for i := 0; i <= 10; i++ {
 			wgp.Add(1)
-			go SpiderProxy(Name, Method, Body, "https://hidemy.name/cn/proxy-list/?maxtime=1000&type="+Types[t]+"&start="+strconv.Itoa(i*64)+"#list", Re)
+			go SpiderProxy(Name, Method, Body, "https://hidemy.name/cn/proxy-list/?maxtime=1000&type="+Types[t]+"&start="+strconv.Itoa(i*64)+"#list", Re, false)
 			time.Sleep(time.Duration(Interval) * time.Second)
 		}
 	}
@@ -281,7 +292,7 @@ func get_scrapedaili() {
 	}
 	for i := range Urls {
 		wgp.Add(1)
-		go SpiderProxy(Name, Method, Body, Urls[i], Re)
+		go SpiderProxy(Name, Method, Body, Urls[i], Re, false)
 		time.Sleep(time.Duration(Interval) * time.Second)
 	}
 
@@ -295,7 +306,7 @@ func get_mydaili() {
 	Name := "my代理"
 	Method := "GET"
 	Body := ""
-	Interval := 0
+	Interval := 1
 	Re := `>(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}:\d+?)#`
 
 	Urls := []string{
@@ -304,13 +315,13 @@ func get_mydaili() {
 	}
 	for i := range Urls {
 		wgp.Add(1)
-		go SpiderProxy(Name, Method, Body, Urls[i], Re)
+		go SpiderProxy(Name, Method, Body, Urls[i], Re, false)
 		time.Sleep(time.Duration(Interval) * time.Second)
 	}
 
 	for i := 1; i <= 10; i++ {
 		wgp.Add(1)
-		go SpiderProxy(Name, Method, Body, `https://www.my-proxy.com/free-proxy-list-`+strconv.Itoa(i)+`.html`, Re)
+		go SpiderProxy(Name, Method, Body, `https://www.my-proxy.com/free-proxy-list-`+strconv.Itoa(i)+`.html`, Re, false)
 		time.Sleep(time.Duration(Interval) * time.Second)
 	}
 
@@ -337,7 +348,7 @@ func get_prodaili() {
 	}
 	for i := range Urls {
 		wgp.Add(1)
-		go SpiderProxy(Name, Method, Body, Urls[i], Re)
+		go SpiderProxy(Name, Method, Body, Urls[i], Re, false)
 		time.Sleep(time.Duration(Interval) * time.Second)
 	}
 
@@ -355,7 +366,7 @@ func get_padaili() {
 	Re := `(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}:\d+?)<br/>`
 
 	wgp.Add(1)
-	go SpiderProxy(Name, Method, Body, "http://www.padaili.com/proxyapi?api=vld845sXw5OmQBa00y4tLb5maonvSwct&num=100&type=3&xiangying=2&order=jiance", Re)
+	go SpiderProxy(Name, Method, Body, "http://www.padaili.com/proxyapi?api=vld845sXw5OmQBa00y4tLb5maonvSwct&num=100&type=3&xiangying=2&order=jiance", Re, false)
 	time.Sleep(time.Duration(Interval) * time.Second)
 
 	wgp.Wait()
@@ -385,7 +396,7 @@ func get_freshdaili() {
 	}
 	for i := range Urls {
 		wgp.Add(1)
-		go SpiderProxy(Name, Method, Body, Urls[i], Re)
+		go SpiderProxy(Name, Method, Body, Urls[i], Re, false)
 		time.Sleep(time.Duration(Interval) * time.Second)
 	}
 
@@ -410,7 +421,7 @@ func get_p11daili() {
 	}
 	for i := range Urls {
 		wgp.Add(1)
-		go SpiderProxy(Name, Method, Body, Urls[i], Re)
+		go SpiderProxy(Name, Method, Body, Urls[i], Re, false)
 		time.Sleep(time.Duration(Interval) * time.Second)
 	}
 
@@ -428,7 +439,7 @@ func get_66daili() {
 	Re := `(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}:\d{2,5})<br`
 
 	wgp.Add(1)
-	go SpiderProxy(Name, Method, Body, "http://www.66ip.cn/mo.php?sxb=&tqsl=4200&port=&export=&ktip=&sxa=", Re)
+	go SpiderProxy(Name, Method, Body, "http://www.66ip.cn/mo.php?sxb=&tqsl=4200&port=&export=&ktip=&sxa=", Re, false)
 	time.Sleep(time.Duration(Interval) * time.Second)
 
 	wgp.Wait()
@@ -468,7 +479,7 @@ func get_github() {
 	}
 	for i := range Urls {
 		wgp.Add(1)
-		go SpiderProxy(Name, Method, Body, Urls[i], Re)
+		go SpiderProxy(Name, Method, Body, Urls[i], Re, false)
 		time.Sleep(time.Duration(Interval) * time.Second)
 	}
 
@@ -492,22 +503,67 @@ func get_opendaili() {
 	}
 	for i := range Urls {
 		wgp.Add(1)
-		go SpiderProxy(Name, Method, Body, Urls[i], Re)
+		go SpiderProxy(Name, Method, Body, Urls[i], Re, false)
 		time.Sleep(time.Duration(Interval) * time.Second)
 	}
 
 	wgp.Wait()
 }
+func get_fofa() {
+	defer func() {
+		wg2.Done()
+		//log.Printf("%s 结束...", Name)
+	}()
+	Name := "fofa"
+	Method := "GET"
+	Body := ""
+	Interval := 1
+	Re := `"(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})","(\d{4,5})"`
+	searchs := []string{
+		`title="ERROR: The requested URL could not be retrieved" && country="CN" && port="8889"`,
+		`title="ERROR: The requested URL could not be retrieved" && country="CN" && port="7777"`,
+		`title="ERROR: The requested URL could not be retrieved" && country="CN" && port="9999"`,
+		`title="ERROR: The requested URL could not be retrieved" && country="CN" && port="8888"`,
+		`title="ERROR: The requested URL could not be retrieved" && country="CN" && port="8000"`,
+		`title="ERROR: The requested URL could not be retrieved" && country="CN" && port="6666"`,
+		`title="ERROR: The requested URL could not be retrieved" && region="HK" && port="5555"`,
+		`title="ERROR: The requested URL could not be retrieved" && region="HK" && port="6666"`,
+		`title="ERROR: The requested URL could not be retrieved" && region="HK" && port="3128"`,
+		`title="ERROR: The requested URL could not be retrieved" && region="HK" && port="8080"`,
+		`title="ERROR: The requested URL could not be retrieved" && region="HK" && port="40000"`,
+		`title="ERROR: The requested URL could not be retrieved" && region="HK" && port="60000"`,
+		`title="ERROR: The requested URL could not be retrieved" && region="TW"`,
+		`title="ERROR: The requested URL could not be retrieved" && country="JP" && port="60000"`,
+		`title="ERROR: The requested URL could not be retrieved" && country="JP" && port="3128"`,
+		`title="ERROR: The requested URL could not be retrieved" && country="JP" && port="40000"`,
+		`title="ERROR: The requested URL could not be retrieved" && country="JP" && port="8080"`,
+		`title="ERROR: The requested URL could not be retrieved" && country="JP" && port="21242"`,
+		`title="ERROR: The requested URL could not be retrieved" && country="KR" && port="60000"`,
+		`title="ERROR: The requested URL could not be retrieved" && country="KR" && port="3128"`,
+		`title="ERROR: The requested URL could not be retrieved" && country="KR" && port="40000"`,
+		`title="ERROR: The requested URL could not be retrieved" && country="KR" && port="8090"`,
+		`title="ERROR: The requested URL could not be retrieved" && country="KR" && port="8080"`,
+	}
+	for i := range searchs {
+		Url := fmt.Sprintf("https://fofa.info/api/v1/search/all?email=2669604112@qq.com&key=c15d75f6c07337b748b632a84adfc81c&qbase64=%s&size=10000&page=1&fields=ip,port", base64.StdEncoding.EncodeToString([]byte(searchs[i])))
+		wgp.Add(1)
+		go SpiderProxy(Name, Method, Body, Url, Re, false)
+		time.Sleep(time.Duration(Interval) * time.Second)
+	}
+	wgp.Wait()
 
-func SpiderProxy(Name string, Method string, Body string, Url string, Re string) {
+}
+
+func SpiderProxy(Name string, Method string, Body string, Url string, Re string, ProxyIs bool) {
 	defer func() {
 		wgp.Done()
 		//log.Printf("%s 结束...", Name)
 	}()
 	//log.Printf("%s 开始... %s", Name, Url)
 	var pis []ProxyIp
-	result := GetResp(Method, Body, Url)
+	result := GetResp(Method, Body, Url, ProxyIs)
 	proxy := regexp.MustCompile(Re).FindAllStringSubmatch(result, -1)
+
 	if len(proxy) == 0 {
 		return
 	}
@@ -543,8 +599,17 @@ func SpiderProxy(Name string, Method string, Body string, Url string, Re string)
 	wg.Wait()
 
 }
-func GetResp(Method string, Body string, Url string) string {
+func GetResp(Method string, Body string, Url string, ProxyIs bool) string {
 	tr := &http.Transport{TLSClientConfig: &tls.Config{InsecureSkipVerify: true}}
+	if ProxyIs {
+		httpsIp = getHttpsIp()
+		proxyUrl, parseErr := url.Parse("http://" + httpsIp)
+		if parseErr != nil {
+			log.Println("代理地址错误: \n" + parseErr.Error())
+			return ""
+		}
+		tr.Proxy = http.ProxyURL(proxyUrl)
+	}
 	//if ProxyIs {
 	//	proxyUrl, parseErr := url.Parse("http://" + conf.Proxy.Host + ":" + conf.Proxy.Port)
 	//	if parseErr != nil {

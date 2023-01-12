@@ -12,11 +12,11 @@ config:
   #监听IP
   ip: 0.0.0.0
   #webApi监听端口
-  port: 80
+  port: 8088
   #http隧道代理端口
   httpTunnelPort: 8080
   #可用IP数量小于‘proxyNum’时就去抓取
-  proxyNum: 10
+  proxyNum: 200
   #代理IP验证间隔秒
   verifyTime: 300
   #抓取/检测状态线程数

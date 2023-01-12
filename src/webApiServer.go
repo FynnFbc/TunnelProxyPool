@@ -49,7 +49,6 @@ func index(c *gin.Context) {
 		home.Country[ProxyPool[i].Country] += 1
 		home.Source[ProxyPool[i].Source] += 1
 	}
-	home.TunnelProxy["HTTP"] = httpIp
 	home.TunnelProxy["HTTPS"] = httpsIp
 	jsonByte, _ := json.Marshal(&home)
 	jsonStr := string(jsonByte)
